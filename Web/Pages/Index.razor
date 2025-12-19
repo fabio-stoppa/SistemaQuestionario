@@ -1,0 +1,53 @@
+@page "/"
+@inject Web.Services.ApiService ApiService
+
+<PageTitle>Sistema de Questionários Online</PageTitle>
+
+<h1>Sistema de Questionários Online</h1>
+
+<p class="lead">Bem-vindo ao sistema de pesquisas públicas!</p>
+
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">📝 Responder Pesquisa</h5>
+                <p class="card-text">Participe de pesquisas públicas e contribua com sua opinião.</p>
+                <a href="/responder" class="btn btn-primary">Acessar</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">➕ Criar Questionário</h5>
+                <p class="card-text">Crie novas pesquisas para coletar dados.</p>
+                <a href="/admin" class="btn btn-success">Criar</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">📊 Ver Resultados</h5>
+                <p class="card-text">Consulte os resultados das pesquisas realizadas.</p>
+                <a href="/resultados" class="btn btn-info">Ver Resultados</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info mt-4" role="alert">
+    <h4 class="alert-heading">ℹ️ Informações do Sistema</h4>
+    <p>Este sistema foi desenvolvido com .NET 8 e utiliza:</p>
+    <ul>
+        <li><strong>Frontend:</strong> Blazor Server</li>
+        <li><strong>Backend:</strong> ASP.NET Core Web API</li>
+        <li><strong>Banco de Dados:</strong> SQL Server LocalDB</li>
+        <li><strong>Cache:</strong> Redis</li>
+        <li><strong>Mensageria:</strong> RabbitMQ</li>
+        <li><strong>Processamento:</strong> Worker Service</li>
+    </ul>
+</div>

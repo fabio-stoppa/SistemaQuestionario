@@ -1,0 +1,269 @@
+@page "/admin"
+@using Microsoft.AspNetCore.Components.Web
+@inject Web.Services.ApiService ApiService
+@inject NavigationManager Navigation
+
+<PageTitle>Criar Questionário</PageTitle>
+
+<h1>Criar Novo Questionário</h1>
+
+<div class="card">
+    <div class="card-body">
+        <div class="mb-3">
+            <label class="form-label">Título*</label>
+            <input type="text" class="form-control" @bind="titulo" placeholder="Ex: Pesquisa de Intenção de Voto 2024" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Descrição</label>
+            <textarea class="form-control" rows="3" @bind="descricao" placeholder="Descreva o objetivo desta pesquisa..."></textarea>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Data de Início (opcional)</label>
+                <input type="datetime-local" class="form-control" @bind="dataInicio" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Data de Fim (opcional)</label>
+                <input type="datetime-local" class="form-control" @bind="dataFim" />
+            </div>
+        </div>
+
+        <hr />
+
+        <h4>Perguntas</h4>
+
+        @for (int i = 0; i < perguntas.Count; i++)
+        {
+            var index = i;
+            var pergunta = perguntas[index];
+            
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <h5>Pergunta @(index + 1)</h5>
+                        <button class="btn btn-sm btn-danger" @onclick="() => RemoverPergunta(index)">Remover</button>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Texto da Pergunta*</label>
+                        <input type="text" class="form-control" @bind="pergunta.Texto" placeholder="Digite a pergunta..." />
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo</label>
+                            <select class="form-select" @bind="pergunta.Tipo">
+                                <option value="MultiplaEscolha">Múltipla Escolha</option>
+                                <option value="Texto">Texto Livre</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" @bind="pergunta.Obrigatoria" id="obrig_@index">
+                                <label class="form-check-label" for="obrig_@index">
+                                    Obrigatória
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (pergunta.Tipo == "MultiplaEscolha")
+                    {
+                        <label class="form-label">Alternativas</label>
+                        @for (int j = 0; j < pergunta.Alternativas.Count; j++)
+                        {
+                            var altIndex = j;
+                            var alternativa = pergunta.Alternativas[altIndex];
+                            
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">@(altIndex + 1)</span>
+                                <input type="text" class="form-control" @bind="alternativa.Texto" placeholder="Digite a alternativa..." />
+                                <button class="btn btn-outline-danger" @onclick="() => RemoverAlternativa(index, altIndex)">✕</button>
+                            </div>
+                        }
+                        
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => AdicionarAlternativa(index)">
+                            + Adicionar Alternativa
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        <button class="btn btn-primary" @onclick="AdicionarPergunta">+ Adicionar Pergunta</button>
+
+        <hr />
+
+        @if (!string.IsNullOrEmpty(mensagemErro))
+        {
+            <div class="alert alert-danger">@mensagemErro</div>
+        }
+
+        @if (salvando)
+        {
+            <div class="alert alert-info">Criando questionário...</div>
+        }
+
+        <div class="d-flex justify-content-end gap-2">
+            <button class="btn btn-secondary" @onclick='() => Navigation.NavigateTo("/")'>Cancelar</button>
+            <button class="btn btn-success" @onclick="SalvarQuestionario" disabled="@salvando">
+                Criar Questionário
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string titulo = "";
+    private string descricao = "";
+    private DateTime? dataInicio;
+    private DateTime? dataFim;
+    private List<PerguntaModel> perguntas = new();
+    private bool salvando = false;
+    private string? mensagemErro;
+
+    protected override void OnInitialized()
+    {
+        AdicionarPergunta();
+    }
+
+    private void AdicionarPergunta()
+    {
+        perguntas.Add(new PerguntaModel
+        {
+            Ordem = perguntas.Count + 1,
+            Tipo = "MultiplaEscolha",
+            Obrigatoria = true,
+            Alternativas = new List<AlternativaModel>
+            {
+                new AlternativaModel { Ordem = 1 },
+                new AlternativaModel { Ordem = 2 }
+            }
+        });
+    }
+
+    private void RemoverPergunta(int index)
+    {
+        perguntas.RemoveAt(index);
+        for (int i = 0; i < perguntas.Count; i++)
+        {
+            perguntas[i].Ordem = i + 1;
+        }
+    }
+
+    private void AdicionarAlternativa(int perguntaIndex)
+    {
+        var pergunta = perguntas[perguntaIndex];
+        pergunta.Alternativas.Add(new AlternativaModel
+        {
+            Ordem = pergunta.Alternativas.Count + 1
+        });
+    }
+
+    private void RemoverAlternativa(int perguntaIndex, int alternativaIndex)
+    {
+        var pergunta = perguntas[perguntaIndex];
+        pergunta.Alternativas.RemoveAt(alternativaIndex);
+        for (int i = 0; i < pergunta.Alternativas.Count; i++)
+        {
+            pergunta.Alternativas[i].Ordem = i + 1;
+        }
+    }
+
+    private async Task SalvarQuestionario()
+    {
+        mensagemErro = null;
+
+        if (string.IsNullOrWhiteSpace(titulo))
+        {
+            mensagemErro = "O título é obrigatório";
+            return;
+        }
+
+        if (!perguntas.Any())
+        {
+            mensagemErro = "Adicione pelo menos uma pergunta";
+            return;
+        }
+
+        foreach (var pergunta in perguntas)
+        {
+            if (string.IsNullOrWhiteSpace(pergunta.Texto))
+            {
+                mensagemErro = "Todas as perguntas devem ter um texto";
+                return;
+            }
+
+            if (pergunta.Tipo == "MultiplaEscolha" && pergunta.Alternativas.Count < 2)
+            {
+                mensagemErro = "Perguntas de múltipla escolha devem ter pelo menos 2 alternativas";
+                return;
+            }
+
+            if (pergunta.Tipo == "MultiplaEscolha")
+            {
+                foreach (var alt in pergunta.Alternativas)
+                {
+                    if (string.IsNullOrWhiteSpace(alt.Texto))
+                    {
+                        mensagemErro = "Todas as alternativas devem ter um texto";
+                        return;
+                    }
+                }
+            }
+        }
+
+        salvando = true;
+
+        try
+        {
+            var dto = new Application.DTOs.CreateQuestionarioDto
+            {
+                Titulo = titulo,
+                Descricao = descricao,
+                DataInicio = dataInicio,
+                DataFim = dataFim,
+                Perguntas = perguntas.Select(p => new Application.DTOs.CreatePerguntaDto
+                {
+                    Texto = p.Texto,
+                    Tipo = p.Tipo,
+                    Ordem = p.Ordem,
+                    Obrigatoria = p.Obrigatoria,
+                    Alternativas = p.Alternativas.Select(a => new Application.DTOs.CreateAlternativaDto
+                    {
+                        Texto = a.Texto,
+                        Ordem = a.Ordem
+                    }).ToList()
+                }).ToList()
+            };
+
+            await ApiService.CreateQuestionarioAsync(dto);
+            Navigation.NavigateTo("/resultados");
+        }
+        catch (Exception ex)
+        {
+            mensagemErro = $"Erro ao criar questionário: {ex.Message}";
+        }
+        finally
+        {
+            salvando = false;
+        }
+    }
+
+    private class PerguntaModel
+    {
+        public string Texto { get; set; } = "";
+        public string Tipo { get; set; } = "MultiplaEscolha";
+        public int Ordem { get; set; }
+        public bool Obrigatoria { get; set; }
+        public List<AlternativaModel> Alternativas { get; set; } = new();
+    }
+
+    private class AlternativaModel
+    {
+        public string Texto { get; set; } = "";
+        public int Ordem { get; set; }
+    }
+}

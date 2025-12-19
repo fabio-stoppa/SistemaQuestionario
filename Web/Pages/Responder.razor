@@ -1,0 +1,235 @@
+@page "/responder"
+@inject Web.Services.ApiService ApiService
+@inject NavigationManager Navigation
+
+<PageTitle>Responder Pesquisa</PageTitle>
+
+<h1>Pesquisas Disponíveis</h1>
+
+@if (questionarios == null)
+{
+    <p><em>Carregando...</em></p>
+}
+else if (!questionarios.Any())
+{
+    <div class="alert alert-warning">
+        Não há pesquisas disponíveis no momento.
+    </div>
+}
+else
+{
+    <div class="row">
+        @foreach (var questionario in questionarios)
+        {
+            <div class="col-md-6 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">@questionario.Titulo</h5>
+                        <p class="card-text">@questionario.Descricao</p>
+                        <p class="text-muted small">
+                            @questionario.Perguntas.Count pergunta(s)
+                        </p>
+                        <button class="btn btn-primary" @onclick="() => SelecionarQuestionario(questionario.Id)">
+                            Responder
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@if (questionarioSelecionado != null)
+{
+    <div class="modal" tabindex="-1" style="display: block; background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@questionarioSelecionado.Titulo</h5>
+                    <button type="button" class="btn-close" @onclick="FecharModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>@questionarioSelecionado.Descricao</p>
+                    
+                    @foreach (var pergunta in questionarioSelecionado.Perguntas)
+                    {
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                @pergunta.Texto
+                                @if (pergunta.Obrigatoria)
+                                {
+                                    <span class="text-danger">*</span>
+                                }
+                            </label>
+                            
+                            @if (pergunta.Tipo == "MultiplaEscolha")
+                            {
+                                @foreach (var alternativa in pergunta.Alternativas)
+                                {
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" 
+                                               name="pergunta_@pergunta.Id" 
+                                               id="alt_@alternativa.Id"
+                                               @onchange="() => SelecionarResposta(pergunta.Id, alternativa.Id)">
+                                        <label class="form-check-label" for="alt_@alternativa.Id">
+                                            @alternativa.Texto
+                                        </label>
+                                    </div>
+                                }
+                            }
+                            else if (pergunta.Tipo == "Texto")
+                            {
+                                <textarea class="form-control" rows="3" 
+                                          @onchange="(e) => SelecionarRespostaTexto(pergunta.Id, e.Value?.ToString())">
+                                </textarea>
+                            }
+                        </div>
+                    }
+                    
+                    @if (!string.IsNullOrEmpty(mensagemErro))
+                    {
+                        <div class="alert alert-danger">@mensagemErro</div>
+                    }
+                    
+                    @if (enviandoRespostas)
+                    {
+                        <div class="alert alert-info">Enviando respostas...</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="FecharModal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="EnviarRespostas" disabled="@enviandoRespostas">
+                        Enviar Respostas
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarSucesso)
+{
+    <div class="modal" tabindex="-1" style="display: block; background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">✓ Sucesso!</h5>
+                </div>
+                <div class="modal-body">
+                    <p>Suas respostas foram enviadas com sucesso!</p>
+                    <p>Obrigado por participar da pesquisa.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" @onclick='() => { mostrarSucesso = false; Navigation.NavigateTo("/responder", true); }'>
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Application.DTOs.QuestionarioDto>? questionarios;
+    private Application.DTOs.QuestionarioDto? questionarioSelecionado;
+    private Dictionary<int, int?> respostasMultiplaEscolha = new();
+    private Dictionary<int, string?> respostasTexto = new();
+    private bool enviandoRespostas = false;
+    private string? mensagemErro;
+    private bool mostrarSucesso = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        questionarios = await ApiService.GetQuestionariosAtivosAsync();
+    }
+
+    private async Task SelecionarQuestionario(int id)
+    {
+        questionarioSelecionado = await ApiService.GetQuestionarioByIdAsync(id);
+        respostasMultiplaEscolha.Clear();
+        respostasTexto.Clear();
+        mensagemErro = null;
+    }
+
+    private void SelecionarResposta(int perguntaId, int alternativaId)
+    {
+        respostasMultiplaEscolha[perguntaId] = alternativaId;
+    }
+
+    private void SelecionarRespostaTexto(int perguntaId, string? texto)
+    {
+        respostasTexto[perguntaId] = texto;
+    }
+
+    private void FecharModal()
+    {
+        questionarioSelecionado = null;
+        respostasMultiplaEscolha.Clear();
+        respostasTexto.Clear();
+        mensagemErro = null;
+    }
+
+    private async Task EnviarRespostas()
+    {
+        if (questionarioSelecionado == null) return;
+
+        // Validar perguntas obrigatórias
+        var perguntasObrigatorias = questionarioSelecionado.Perguntas.Where(p => p.Obrigatoria);
+        foreach (var pergunta in perguntasObrigatorias)
+        {
+            if (pergunta.Tipo == "MultiplaEscolha" && !respostasMultiplaEscolha.ContainsKey(pergunta.Id))
+            {
+                mensagemErro = $"Por favor, responda a pergunta obrigatória: {pergunta.Texto}";
+                return;
+            }
+            if (pergunta.Tipo == "Texto" && !respostasTexto.ContainsKey(pergunta.Id))
+            {
+                mensagemErro = $"Por favor, responda a pergunta obrigatória: {pergunta.Texto}";
+                return;
+            }
+        }
+
+        enviandoRespostas = true;
+        mensagemErro = null;
+
+        try
+        {
+            var dto = new Application.DTOs.SubmitRespostasDto
+            {
+                QuestionarioId = questionarioSelecionado.Id,
+                Respostas = new List<Application.DTOs.RespostaDto>()
+            };
+
+            foreach (var kvp in respostasMultiplaEscolha)
+            {
+                dto.Respostas.Add(new Application.DTOs.RespostaDto
+                {
+                    PerguntaId = kvp.Key,
+                    AlternativaId = kvp.Value
+                });
+            }
+
+            foreach (var kvp in respostasTexto)
+            {
+                dto.Respostas.Add(new Application.DTOs.RespostaDto
+                {
+                    PerguntaId = kvp.Key,
+                    TextoResposta = kvp.Value
+                });
+            }
+
+            await ApiService.SubmitRespostasAsync(dto);
+            
+            FecharModal();
+            mostrarSucesso = true;
+        }
+        catch (Exception ex)
+        {
+            mensagemErro = $"Erro ao enviar respostas: {ex.Message}";
+        }
+        finally
+        {
+            enviandoRespostas = false;
+        }
+    }
+}

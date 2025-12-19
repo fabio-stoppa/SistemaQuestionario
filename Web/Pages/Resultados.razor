@@ -1,0 +1,118 @@
+@page "/resultados"
+@inject Web.Services.ApiService ApiService
+
+<PageTitle>Resultados</PageTitle>
+
+<h1>Resultados das Pesquisas</h1>
+
+@if (questionarios == null)
+{
+    <p><em>Carregando...</em></p>
+}
+else if (!questionarios.Any())
+{
+    <div class="alert alert-warning">
+        Não há questionários cadastrados.
+    </div>
+}
+else
+{
+    <div class="mb-4">
+        <label class="form-label">Selecione um questionário:</label>
+        <select class="form-select" @onchange="SelecionarQuestionario">
+            <option value="">-- Selecione --</option>
+            @foreach (var q in questionarios)
+            {
+                <option value="@q.Id">@q.Titulo (@q.DataCriacao.ToString("dd/MM/yyyy"))</option>
+            }
+        </select>
+    </div>
+
+    @if (carregandoResultados)
+    {
+        <div class="alert alert-info">Carregando resultados...</div>
+    }
+    else if (resultados != null && resultados.Any())
+    {
+        <div class="alert alert-info">
+            <strong>Nota:</strong> Os resultados são processados em tempo real pelo Worker Service. 
+            Aguarde alguns segundos após responder uma pesquisa para ver os dados atualizados.
+        </div>
+
+        @foreach (var resultado in resultados)
+        {
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5>@resultado.PerguntaTexto</h5>
+                    <small>Total de respostas: @resultado.TotalRespostas</small>
+                </div>
+                <div class="card-body">
+                    @if (resultado.Alternativas.Any())
+                    {
+                        @foreach (var alt in resultado.Alternativas.OrderByDescending(a => a.TotalRespostas))
+                        {
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>@alt.AlternativaTexto</span>
+                                    <span><strong>@alt.TotalRespostas</strong> (@alt.Percentual.ToString("0.00")%)</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: @alt.Percentual%"
+                                         aria-valuenow="@alt.Percentual" aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted">Ainda não há respostas para esta pergunta.</p>
+                    }
+                </div>
+            </div>
+        }
+    }
+    else if (questionarioSelecionadoId > 0)
+    {
+        <div class="alert alert-warning">
+            Ainda não há resultados para este questionário. 
+            Aguarde alguns segundos após a primeira resposta para que os dados sejam processados.
+        </div>
+    }
+}
+
+@code {
+    private List<Application.DTOs.QuestionarioDto>? questionarios;
+    private List<Application.DTOs.ResultadoDto>? resultados;
+    private int questionarioSelecionadoId = 0;
+    private bool carregandoResultados = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        questionarios = await ApiService.GetQuestionariosAsync();
+    }
+
+    private async Task SelecionarQuestionario(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int id))
+        {
+            questionarioSelecionadoId = id;
+            carregandoResultados = true;
+            
+            try
+            {
+                resultados = await ApiService.GetResultadosAsync(id);
+            }
+            finally
+            {
+                carregandoResultados = false;
+            }
+        }
+        else
+        {
+            questionarioSelecionadoId = 0;
+            resultados = null;
+        }
+    }
+}
