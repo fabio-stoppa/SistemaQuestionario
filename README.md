@@ -27,7 +27,7 @@ Abra o terminal na pasta onde deseja salvar o projeto e execute:
 
 ```bash
 git clone https://github.com/fabio-stoppa/SistemaQuestionario.git
-cd SistemaQuestionarios
+cd SistemaQuestionario
 ```
 
 #### 2. Iniciar todo o ecossistema (Build e Start)
