@@ -199,6 +199,8 @@ h1 {
 
 .page {
     display: flex;
+    min-height: 100vh;
+    height: 100%;
 }
 
 hr {
