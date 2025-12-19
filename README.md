@@ -26,7 +26,7 @@ Abra o terminal na pasta onde deseja salvar o projeto e execute:
 #### 1. Clonar o repositório
 
 ```bash
-git clone
+git clone https://github.com/fabio-stoppa/SistemaQuestionario.git
 cd SistemaQuestionarios
 ```
 
