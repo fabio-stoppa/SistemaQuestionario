@@ -64,10 +64,11 @@ public class ProcessadorRespostasWorker : BackgroundService
 
             if (pergunta.Tipo == TipoPergunta.MultiplaEscolha)
             {
+                var respostasPergunta = await respostaRepo.GetByQuestionarioIdAsync(questionarioId);
                 foreach (var alternativa in pergunta.Alternativas)
                 {
-                    var respostasAlternativa = await respostaRepo.GetByQuestionarioIdAsync(questionarioId);
-                    var totalAlternativa = respostasAlternativa
+                    var totalAlternativa = respostasPergunta
+                        .Where(r => r.PerguntaId == pergunta.Id)
                         .Count(r => r.AlternativaId == alternativa.Id);
 
                     var percentual = totalRespostas > 0 
@@ -85,6 +86,19 @@ public class ProcessadorRespostasWorker : BackgroundService
 
                     await resultadoRepo.AddOrUpdateAsync(resultado);
                 }
+            }
+            else
+            {
+                var resultado = new ResultadoSumarizado
+                {
+                    PerguntaId = pergunta.Id,
+                    AlternativaId = null,
+                    TotalRespostas = totalRespostas,
+                    Percentual = 100, // Total of text responses is always 100% of text responses
+                    DataProcessamento = DateTime.Now
+                };
+
+                await resultadoRepo.AddOrUpdateAsync(resultado);
             }
         }
 
